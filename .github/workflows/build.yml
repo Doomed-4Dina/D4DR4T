@@ -1,0 +1,44 @@
+name: Build Executable
+
+on:
+  push:
+    branches:
+      - main  # Triggers on push to the main branch
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Set up Python
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'  # Use the version of Python your project requires
+
+      # Install dependencies (PyInstaller and any project-specific packages)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt  # Assuming you have a requirements.txt file
+
+      # Build the executable using PyInstaller
+      - name: Build executable
+        run: |
+          pyinstaller --onefile --windowed --name "D4DR4T" --icon "icon.ico" d4dr4t_builder.py
+        shell: cmd
+
+      # Upload the built executable as an artifact
+      - name: Upload executable
+        uses: actions/upload-artifact@v2
+        with:
+          name: D4DR4T-executable
+          path: dist/D4DR4T.exe
