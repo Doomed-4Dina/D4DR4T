@@ -1,0 +1,4 @@
+pyinstaller==5.6.2      # Required to convert Python script into an executable
+cryptography==41.0.1    # For encrypted communication using Fernet
+pyautogui==0.9.53       # For screenshot functionality and mouse/keyboard automation
+Pillow==9.4.0           # For handling image-related tasks (e.g., screenshots)
